@@ -1,4 +1,6 @@
 #include <string>
+#include <ctype.h>
+#include <stdlib.h>
 #include <utility>
 #include <locale.h>
 #include <ncurses.h>
@@ -10,7 +12,9 @@ int parse_command (
         char x, Cursor &cur, int winx, 
         int winy, int total_lines, 
         std::vector <int> &THICCNESS, 
-        std::vector <int> &buff_text_lines
+        std::vector <int> &LINEON, 
+        std::vector <int> &buff_text_lines,
+        std::vector <int> &buff_text_width
      )
 {
     int ret = 1;
@@ -24,79 +28,84 @@ int parse_command (
         }
     }
 
-    // h j k l
-        
     if (x == 'j') {
-        if (cur.oy < winy - 3) {
-            cur.oy++;
-        }
-        int temp_ovf = 0;
-        int temp_index = buff_text_lines.size();
-        while (temp_ovf < winy-3) {
-            temp_index--;
-            temp_ovf += buff_text_lines[temp_index];
-        }
-        temp_index++;
-        if (cur.oy == winy-3 && cur.vu < temp_index) {
-            cur.vu += 1;
-            ret *= 5;
-        }
-        cur.y = cur.oy;
-        if ( THICCNESS[cur.y]+4 < cur.x || THICCNESS[cur.y]+4 < cur.ox) 
-            cur.x = 4+THICCNESS[cur.y];
-        else cur.x = cur.ox;
-    } else if (x == 'k') {
-        if (cur.oy > 0) {
-            cur.oy -= 1;
-        }
-        if (cur.oy == 0) {
-            if (cur.vu > 0) {
-                cur.vu -= 1;
-                ret *= 5;
+        if (cur.oline < total_lines - 1) {
+            cur.oline++;
+            cur.opos = cur.maxx;
+            if (cur.opos > buff_text_width[cur.oline]) {
+                cur.opos = buff_text_width[cur.oline];
             }
         }
-        cur.y = cur.oy;
-        if (THICCNESS[cur.y]+4 < cur.x || THICCNESS[cur.y]+4 < cur.ox) 
-            cur.x = 4+THICCNESS[cur.y];
-        else cur.x = cur.ox;
+        if (cur.vl < total_lines - 1 && cur.line >= cur.lastline) {
+            int temp_count = 0;
+            int temp_index = cur.vl+2;
+            while (1) {
+                temp_index--;
+                temp_count += buff_text_lines[temp_index];
+                if (temp_index < 0) break;
+                if (temp_count == winy - 2) {
+                    break;
+                }
+                if (temp_count > winy - 2) {
+                    temp_index++;
+                    break;
+                }
+            }
+            cur.vf = temp_index;
+        }
+    } else if (x == 'k') {
+        if (cur.oline > 0) {
+            cur.oline--;
+            cur.opos = cur.maxx;
+            if (cur.opos > buff_text_width[cur.oline] - 2) {
+                cur.opos = buff_text_width[cur.oline] - 2;
+            }
+        }
+        if (cur.vl > 0 && cur.line == 0 && cur.vf != 0) {
+            cur.vf--;
+        }
     } else if (x == 'h') {
-        if (cur.ox >= THICCNESS[cur.y]+4) {
-            cur.ox = THICCNESS[cur.y]+4;
+        if (cur.opos > 0) {
+            cur.opos--;
+            cur.maxx = cur.opos;
         }
-        if (cur.ox > 4) {
-            cur.ox -= 1;
-        }
-        cur.x = cur.ox;
     } else if (x == 'l') {
-        if (cur.ox < THICCNESS[cur.y]+4) {
-            cur.ox += 1;
+        if (cur.opos < buff_text_width[cur.oline] - 2) {
+            cur.opos++;
+            cur.maxx = cur.opos;
         }
-        if (THICCNESS[cur.y]+4 < cur.x || THICCNESS[cur.y]+4 < cur.ox) 
-            cur.x = 4+THICCNESS[cur.y];
-        else cur.x = cur.ox;
-
-    // g G
-
     } else if (x == 'G') {
-        int temp_ovf = 0;
-        int temp_index = buff_text_lines.size();
-        while (temp_ovf < winy-3) {
+        int temp_count = 0;
+        int temp_index = total_lines;
+        while (1) {
             temp_index--;
-            temp_ovf += buff_text_lines[temp_index];
+            temp_count += buff_text_lines[temp_index];
+            if (temp_index < 0) break;
+            if (temp_count == winy - 2) {
+                break;
+            }
+            if (temp_count > winy - 2) {
+                temp_index++;
+                break;
+            }
         }
-        cur.vu = ++temp_index;
-        cur.y = winy-3;
-        cur.oy = winy-3;
+        cur.vf = temp_index;
+        cur.oline = cur.vf;
     } else if (x == 'g') {
         x = getch();
         if (x == 'g') {
-            cur.vu = 0;
-            cur.oy = 0;
-            cur.y = 0; 
+            cur.vf = 0;
+            cur.oline = 0;
         }
 
     // modes
 
+    } else if (x == '0') {
+        cur.maxx = 0;
+        cur.opos = 0;
+    } else if (x == '$') {
+        cur.maxx = buff_text_width[cur.oline] - 2;
+        cur.opos = cur.maxx;
     } else if (x == 'i') {
         cur.mode = 'i';
     } else if (x == 'n') {

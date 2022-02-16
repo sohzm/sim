@@ -40,6 +40,7 @@ int main(int argc, char* argv[]) {
 
     std::vector <std::pair <int, std::string>> buff_text;
     std::vector <int> buff_text_lines;
+    std::vector <int> buff_text_width;
     
     int index = 0;
     int length = 0;
@@ -49,7 +50,6 @@ int main(int argc, char* argv[]) {
             length = i - index+1;
             lines++;
             buff_text.push_back({lines, file_txt.substr(index, length)});
-            log(buff_text[buff_text.size()-1].second);
             index = i+1;
         }
     }
@@ -70,39 +70,50 @@ int main(int argc, char* argv[]) {
     getmaxyx(stdscr, window_y, window_x);
 
     for (auto x: buff_text) {
+        buff_text_width.push_back(x.second.length());
         buff_text_lines.push_back(x.second.length()/(window_x-4));
         if (x.second.length()%(window_x-4) != 0) 
             buff_text_lines[buff_text_lines.size()-1]++;
     }
 
     std::vector <int> THICCNESS(window_y -2);
+    std::vector <int> LINEON(window_y-2);
 
     Cursor cur;
-    cur.x = 4, cur.y = 0, cur.vu = 0, cur.ox = 4, cur.oy = 0;
+    cur.line  = 0, cur.pos  = 4;
+    cur.vline = 0, cur.vpos = 0;
+    cur.oline = 0, cur.opos = 0;
+
     cur.mode = 'n';
+    cur.vf = 0, cur.vl = 0;
+    cur.maxx = 0;
+
+
     bool needed_text = true, 
          needed_line = true,
          needed_curs = true;
 
     while (true) {
+        getmaxyx(stdscr, window_y, window_x);
         std::vector <std::pair <int, std::string>> 
-            buff_text_temp(buff_text.begin() + cur.vu, buff_text.end());
+            buff_text_temp(buff_text.begin() + cur.vf, buff_text.end());
 
-        if (needed_text)
-            print_text(window_y-2, window_x, buff_text_temp, THICCNESS);
-        if (needed_line)
-            print_line(
-                    window_y-2, window_x, cur.mode, 
-                    ((cur.vu+window_y)*100)/buff_text.size()
-                );
-        if (needed_curs)
-            print_curs(cur);
+        if (needed_text) {
+            print_text(window_y-2, window_x, buff_text_temp, THICCNESS, LINEON, cur);
+        }
+        if (needed_line) {
+            int percent = (window_y*100)/buff_text.size();
+            print_line(window_y-2, window_x, cur.mode, percent);
+        }
+        if (needed_curs) {
+            print_curs(cur, window_x, window_y);
+        }
 
         move(window_y-1, 2);
-        char x = getch();
+        char input_char = getch();
         int parsing_nes = parse_command(
-                x, cur, window_x, window_y, 
-                buff_text.size(), THICCNESS, buff_text_lines
+                input_char, cur, window_x, window_y, 
+                buff_text.size(), THICCNESS, LINEON, buff_text_lines, buff_text_width
             );
 //        needed_line = false;
 //        needed_text = false;

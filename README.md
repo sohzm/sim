@@ -2,7 +2,7 @@
 
 Simple vIM. Why? Why not?
 
-Text Editor with vim keys made with Ncurses. Currently only works as a pager ;)
+Text Editor with vim keys made with Ncurses. ~~Currently only works as a pager~~ ;)
 
 ### Keys Supported 
 
